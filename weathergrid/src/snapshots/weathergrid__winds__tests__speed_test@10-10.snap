@@ -1,0 +1,5 @@
+---
+source: shared/src/winds.rs
+expression: weather.speed()
+---
+14.142135623730951

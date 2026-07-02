@@ -1,0 +1,5 @@
+---
+source: shared/src/winds.rs
+expression: weather.nav_style_bearing().to_degrees()
+---
+225

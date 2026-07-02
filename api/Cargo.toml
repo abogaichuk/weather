@@ -1,0 +1,76 @@
+[package]
+name = "weather-api"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+# not published to crates.io (the name is also squatted there); ships via the GitHub repo
+publish = false
+# `cargo run -p weather-api` picks the server; the `convertor` bin still needs --bin.
+default-run = "weather-api"
+
+[[bin]]
+name = "weather-api"
+path = "src/main.rs"
+
+[dependencies]
+# shared wire-contract types (request/response DTOs)
+weathergrid.workspace = true
+
+# shared across the workspace
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+chrono.workspace = true
+reqwest.workspace = true
+
+# API-only dependencies
+axum = { version = "0.8", features = ["macros"] }
+# zstd-compress responses (transparent to clients that send Accept-Encoding: zstd).
+# Shrinks the ~0.5 GB winds run on the wire to clients; the bincode payload of
+# repeated f64 lat/lon keys + smooth wind fields compresses ~3–6x.
+tower-http = { version = "0.6", features = ["compression-zstd"] }
+# zstd-compress winds runs on disk (the wire is compressed separately by the
+# tower-http layer above). Already in the build transitively via async-compression,
+# so this direct dep adds no new crates — it just makes the sync codec available.
+zstd = "0.13"
+tokio-cron-scheduler = "0.15.1"
+#tokio-util = { version = "0.7", features = ["io"] }
+
+# constant-time token comparison for API-key auth
+subtle = "2"
+
+# .env loading
+dotenvy = "0.15"
+
+#grib2
+# 0.15+ adds CCSDS/AEC (GRIB2 template 5.42) unpacking — required to decode
+# ECMWF Open Data, whose gridded fields are CCSDS-packed. Default features are
+# disabled to avoid `gridpoints-proj` dragging in the PROJ C library (became a
+# default in 0.15); ICON-EU/ECMWF are regular lat/lon grids that don't need it.
+# We keep the unpackers our sources actually use (CCSDS for ECMWF, JPEG2000/PNG
+# for some GFS fields).
+grib = { version = "0.15", default-features = false, features = [
+    "ccsds-unpack-with-libaec",
+    "jpeg2000-unpack-with-openjpeg",
+    "png-unpack-with-png-crate",
+] }
+# icon-eu files are .grib2.bz2
+bzip2 = "0.4"
+
+ordered-float.workspace = true
+bincode = { version = "2.0", features = ["serde"] }
+bytes = { version = "1.10.1" }
+futures = { version = "0.3" }
+# dyn-compatible async trait methods (WeatherProvider)
+async-trait = "0.1"
+
+[dev-dependencies]
+tempfile = "3"
+rstest = "0.26.1"
+insta = { version = "1.42.2", features = ["redactions", "glob", "json"] }
+# `ServiceExt::oneshot` for driving the router in auth middleware tests
+tower = { version = "0.5", features = ["util"] }

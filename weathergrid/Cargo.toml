@@ -1,0 +1,28 @@
+[package]
+name = "weathergrid"
+description = "Wire-contract types for the weather forecast API — gridded wind/weather data with interpolation and a shared bincode codec"
+readme = "README.md"
+keywords = ["weather", "wind", "forecast", "grib", "grid"]
+categories = ["science", "data-structures", "api-bindings"]
+# insta test snapshots: not needed by consumers, and their `->`/`°` filenames
+# are rejected by cargo package
+exclude = ["src/snapshots"]
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+serde.workspace = true
+chrono.workspace = true
+# ordered f64 map keys for the wire-grid representation
+ordered-float.workspace = true
+# Weather::new sanitizes non-finite components and warns
+tracing.workspace = true
+# the single bincode codec shared by the API, convertor, and clients
+bincode = { version = "2.0", features = ["serde"] }
+thiserror.workspace = true
+
+[dev-dependencies]
+insta = "1.42.2"
+rstest = "0.26.1"

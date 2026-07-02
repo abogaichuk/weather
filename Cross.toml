@@ -1,0 +1,12 @@
+[build]                                # do not use zig cc for the builds
+default-target = "aarch64-unknown-linux-gnu"    # use this target if none is explicitly provided
+
+[target.aarch64-unknown-linux-gnu]
+# libaec-sys (pulled in by grib 0.15 for CCSDS/AEC GRIB2 decoding) bundles
+# libaec-1.1.4, whose CMakeLists requires cmake >= 3.26; the cross image ships
+# 3.23.1. Install a modern cmake into the build container. cmake runs host-arch
+# and only emits aarch64 via the toolchain file, so a host-arch wheel is correct.
+pre-build = [
+    "apt-get update && apt-get install --assume-yes --no-install-recommends python3-pip",
+    "pip3 install --upgrade 'cmake>=3.26'",
+]

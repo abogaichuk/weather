@@ -1,0 +1,11 @@
+# Build output
+/target
+
+# Downloaded forecast data cache ($WEATHER_DIR, default ./data)
+/data
+
+# Secrets — real tokens live only in the local .env (see .env.example)
+.env
+
+# IDE
+/.idea
