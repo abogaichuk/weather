@@ -1,20 +1,19 @@
 [build]                                # do not use zig cc for the builds
 default-target = "aarch64-unknown-linux-gnu"    # use this target if none is explicitly provided
 
-[target.aarch64-unknown-linux-gnu]
-# libaec-sys (pulled in by grib 0.15 for CCSDS/AEC GRIB2 decoding) bundles
-# libaec-1.1.4, whose CMakeLists requires cmake >= 3.26; the cross image ships
-# 3.23.1. Install a modern cmake into the build container. cmake runs host-arch
-# and only emits aarch64 via the toolchain file, so a host-arch wheel is correct.
+# grib 0.15 pulls in libaec-sys, whose bundled libaec CMakeLists requires cmake
+# >= 3.26. The cross 0.2.5 images are Ubuntu 16.04 with cmake ~3.5 and pip 8.1.1 —
+# too old to install a modern cmake wheel (it falls back to building cmake from
+# source and dies on a missing setuptools). So we drop in Kitware's official static
+# cmake binary instead of going through pip.
+#
+# This lives under [build] (not per-target) so it applies to every target: cmake
+# runs host-arch (amd64) and only cross-emits the target via the toolchain file, so
+# the linux-x86_64 cmake binary is correct for both x86_64 and aarch64 builds.
 pre-build = [
-    "apt-get update && apt-get install --assume-yes --no-install-recommends python3-pip",
-    "pip3 install --upgrade 'cmake>=3.26'",
-]
-
-[target.x86_64-unknown-linux-gnu]
-# Same story as aarch64 above: libaec-sys needs cmake >= 3.26, newer than the
-# cross image ships. Install a modern cmake into the x86_64 build container too.
-pre-build = [
-    "apt-get update && apt-get install --assume-yes --no-install-recommends python3-pip",
-    "pip3 install --upgrade 'cmake>=3.26'",
+    "apt-get update && apt-get install --assume-yes --no-install-recommends curl ca-certificates",
+    "curl -fsSL https://github.com/Kitware/CMake/releases/download/v3.31.6/cmake-3.31.6-linux-x86_64.tar.gz -o /tmp/cmake.tar.gz",
+    "tar -xzf /tmp/cmake.tar.gz -C /opt",
+    "ln -sf /opt/cmake-3.31.6-linux-x86_64/bin/cmake /usr/local/bin/cmake",
+    "rm -f /tmp/cmake.tar.gz",
 ]

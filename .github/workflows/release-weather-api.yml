@@ -1,7 +1,12 @@
 name: release-weather-api
 
-# Cross-build the weather-api server binary and attach it to a GitHub Release.
+# Build the weather-api server binary and attach it to a GitHub Release.
 # Trigger: push a tag like `weather-api-v0.4.0` (the frequent release path).
+#
+# Each target builds NATIVELY on its own arch runner (x86_64 + arm64), both free
+# for public repos — so there's no cross-compilation, no Docker, no cross. Built on
+# Ubuntu 22.04 (glibc 2.35), so the binaries run on Debian 12 / Ubuntu 22.04+ and
+# 64-bit Raspberry Pi OS Bookworm.
 on:
   push:
     tags:
@@ -14,24 +19,44 @@ jobs:
 
   build:
     needs: checks
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false # one arch failing shouldn't abort the other
       matrix:
-        target:
-          - x86_64-unknown-linux-gnu
-          - aarch64-unknown-linux-gnu
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-22.04
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-22.04-arm
     steps:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
 
-      # cross runs the build inside a container per Cross.toml; its pre-build step
-      # installs the modern cmake that grib/libaec needs. --locked keeps the build
-      # reproducible against Cargo.lock.
-      - name: Install cross
-        run: cargo install cross --locked
+      # grib 0.15 -> libaec-sys needs cmake >= 3.26; Ubuntu 22.04's apt ships 3.22.
+      # Drop in Kitware's official static binary for the runner's arch (derived from
+      # uname, which equals the target here since we build natively) and put it first
+      # on PATH. No sudo, no pip/PEP-668 friction.
+      - name: Install cmake >= 3.26
+        run: |
+          ver=3.31.6
+          arch=$(uname -m) # x86_64 or aarch64
+          curl -fsSL "https://github.com/Kitware/CMake/releases/download/v${ver}/cmake-${ver}-linux-${arch}.tar.gz" -o /tmp/cmake.tar.gz
+          mkdir -p "$HOME/cmake"
+          tar -xzf /tmp/cmake.tar.gz -C "$HOME/cmake" --strip-components=1
+          echo "$HOME/cmake/bin" >> "$GITHUB_PATH"
 
-      - name: Cross-build weather-api
-        run: cross build --release --locked --target ${{ matrix.target }} -p weather-api --bin weather-api
+      - name: Show toolchain
+        run: cmake --version && cargo --version
+
+      # rustup honours rust-toolchain.toml (pinned nightly); add the target for it.
+      # For a native build this is a no-op, but it's explicit and safe.
+      - name: Add rust target
+        run: rustup target add ${{ matrix.target }}
+
+      - name: Build weather-api
+        run: cargo build --release --locked --target ${{ matrix.target }} -p weather-api --bin weather-api
 
       - name: Package
         run: |
