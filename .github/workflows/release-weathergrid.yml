@@ -1,0 +1,37 @@
+name: release-weathergrid
+
+# Publish the weathergrid library to crates.io.
+# Trigger: push a tag like `weathergrid-v0.2.0` (only when the wire types change).
+on:
+  push:
+    tags:
+      - "weathergrid-v*"
+
+jobs:
+  # Gate: reuse the shared fmt/clippy/test workflow. Publish only runs if green.
+  checks:
+    uses: ./.github/workflows/checks.yml
+
+  publish:
+    needs: checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+
+      # Safety: the tag version must match weathergrid's Cargo.toml version, so a
+      # mistyped tag fails loudly before touching crates.io.
+      - name: Verify tag matches crate version
+        run: |
+          tag="${GITHUB_REF_NAME#weathergrid-v}"
+          crate=$(cargo metadata --format-version 1 --no-deps \
+            | jq -r '.packages[] | select(.name=="weathergrid") | .version')
+          echo "tag=$tag crate=$crate"
+          test "$tag" = "$crate" || { echo "::error::tag $tag != crate version $crate"; exit 1; }
+
+      # cargo publish refuses to overwrite an existing version, so a forgotten
+      # bump fails safely rather than clobbering a published release.
+      - name: Publish to crates.io
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: cargo publish -p weathergrid

@@ -3,7 +3,9 @@ resolver = "3"
 members = ["api", "weathergrid"]
 
 [workspace.package]
-version = "0.1.1"
+# Each crate carries its own `version` (see api/ and weathergrid/ Cargo.toml):
+# `weathergrid` (crates.io) and `weather-api` (binary) release independently, so
+# their versions are intentionally not shared here.
 edition = "2024"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/abogaichuk/weather"

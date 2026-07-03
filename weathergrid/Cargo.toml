@@ -7,7 +7,9 @@ categories = ["science", "data-structures", "api-bindings"]
 # insta test snapshots: not needed by consumers, and their `->`/`°` filenames
 # are rejected by cargo package
 exclude = ["src/snapshots"]
-version.workspace = true
+# Independent from weather-api: bumped only when the wire types change
+# (weathergrid-v* tags → crates.io publish).
+version = "0.1.1"
 edition.workspace = true
 license.workspace = true
 repository.workspace = true

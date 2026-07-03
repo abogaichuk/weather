@@ -10,3 +10,11 @@ pre-build = [
     "apt-get update && apt-get install --assume-yes --no-install-recommends python3-pip",
     "pip3 install --upgrade 'cmake>=3.26'",
 ]
+
+[target.x86_64-unknown-linux-gnu]
+# Same story as aarch64 above: libaec-sys needs cmake >= 3.26, newer than the
+# cross image ships. Install a modern cmake into the x86_64 build container too.
+pre-build = [
+    "apt-get update && apt-get install --assume-yes --no-install-recommends python3-pip",
+    "pip3 install --upgrade 'cmake>=3.26'",
+]

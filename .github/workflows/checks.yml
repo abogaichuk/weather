@@ -1,0 +1,28 @@
+name: checks
+
+# Reusable fmt/clippy/test gate. Called by the release workflows so nothing ships
+# unless the workspace is green. Not triggered on its own.
+on:
+  workflow_call:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Cache the cargo registry + target dir across runs.
+      - uses: Swatinem/rust-cache@v2
+
+      # No toolchain-install step: rustup honours rust-toolchain.toml automatically,
+      # pulling the pinned nightly plus the clippy + rustfmt components on first use.
+      - name: rustfmt
+        run: cargo fmt --all --check
+
+      - name: clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      # Builds weather-api too, which needs cmake + a C compiler. ubuntu-latest
+      # ships cmake >= 3.28 and gcc, satisfying grib/libaec without Cross.toml.
+      - name: test
+        run: cargo test --workspace

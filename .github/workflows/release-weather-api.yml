@@ -1,0 +1,67 @@
+name: release-weather-api
+
+# Cross-build the weather-api server binary and attach it to a GitHub Release.
+# Trigger: push a tag like `weather-api-v0.4.0` (the frequent release path).
+on:
+  push:
+    tags:
+      - "weather-api-v*"
+
+jobs:
+  # Gate: reuse the shared fmt/clippy/test workflow. Builds only run if green.
+  checks:
+    uses: ./.github/workflows/checks.yml
+
+  build:
+    needs: checks
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target:
+          - x86_64-unknown-linux-gnu
+          - aarch64-unknown-linux-gnu
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+
+      # cross runs the build inside a container per Cross.toml; its pre-build step
+      # installs the modern cmake that grib/libaec needs. --locked keeps the build
+      # reproducible against Cargo.lock.
+      - name: Install cross
+        run: cargo install cross --locked
+
+      - name: Cross-build weather-api
+        run: cross build --release --locked --target ${{ matrix.target }} -p weather-api --bin weather-api
+
+      - name: Package
+        run: |
+          ver="${GITHUB_REF_NAME#weather-api-v}"
+          name="weather-api-v${ver}-${{ matrix.target }}"
+          mkdir -p "dist/$name"
+          cp "target/${{ matrix.target }}/release/weather-api" "dist/$name/"
+          # Best-effort docs/licence alongside the binary; don't fail if absent.
+          cp README.md api/README.md LICENSE* "dist/$name/" 2>/dev/null || true
+          tar -C dist -czf "dist/$name.tar.gz" "$name"
+          sha256sum "dist/$name.tar.gz" > "dist/$name.tar.gz.sha256"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}
+          path: dist/*.tar.gz*
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # required for GITHUB_TOKEN to create the Release
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: dist/*
